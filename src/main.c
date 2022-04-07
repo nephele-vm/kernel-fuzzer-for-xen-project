@@ -47,7 +47,7 @@ static bool inject_input(vmi_instance_t vmi)
         .addr = address
     );
 
-    if ( debug ) printf("Writing %lu bytes of input to 0x%lx\n", input_size, address);
+    if ( debug ) fprintf(stdout, "Writing %lu bytes of input to 0x%lx\n", input_size, address);
 
     if ( vm_is_pv )
     {
@@ -77,7 +77,7 @@ static bool make_fuzz_ready()
 
     setup_trace(vmi);
 
-    if ( debug ) printf("VM Fork is ready for fuzzing\n");
+    if ( debug ) fprintf(stderr, "VM Fork is ready for fuzzing\n");
 
     return true;
 }
@@ -115,9 +115,9 @@ static bool fuzz(void)
         return false;
     }
 
-    if ( debug ) printf("Starting fuzz loop\n");
+    if ( debug ) fprintf(stderr, "Starting fuzz loop\n");
     loop(vmi);
-    if ( debug ) printf("Stopping fuzz loop.\n");
+    if ( debug ) fprintf(stderr, "Stopping fuzz loop.\n");
 
     if ( ptcov )
         decode_pt();
@@ -149,7 +149,7 @@ static bool fuzz(void)
         } else
             ret = true;
     } else
-        printf("Result: %s\n", crash ? "crash" : "no crash");
+        fprintf(stderr, "Result: %s\n", crash ? "crash" : "no crash");
 
     free(input);
     input = NULL;
