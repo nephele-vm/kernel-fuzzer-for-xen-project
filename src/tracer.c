@@ -42,12 +42,15 @@ int pv_cow(vmi_instance_t vmi, uint32_t domid, addr_t vaddr, addr_t *paddr)
     page_info_t info;
     int rc;
 
-    rc = xc_cloning_cow(xc, domid, (void *) vaddr, &new_mfn);
-    if ( rc && errno != ESRCH )
+    if ( !no_cloning )
     {
-        fprintf(stderr, "Error calling xc_cloning_cow() rc=%d errno=%d\n",
-                rc, errno);
-        goto out;
+        rc = xc_cloning_cow(xc, domid, (void *) vaddr, &new_mfn);
+        if ( rc && errno != ESRCH )
+        {
+            fprintf(stderr, "Error calling xc_cloning_cow() rc=%d errno=%d\n",
+                    rc, errno);
+            goto out;
+        }
     }
 
     if ( paddr )
@@ -73,7 +76,7 @@ out:
 
 static void breakpoint_next_cf(vmi_instance_t vmi)
 {
-    if ( xen_is_pv(vmi) )
+    if ( xen_is_pv(vmi) && !no_cloning )
     {
         if ( VMI_SUCCESS != pv_cow(vmi, fuzzdomid, next_cf_vaddr, &next_cf_paddr) )
             return;
@@ -648,7 +651,7 @@ bool make_sink_ready(void)
          */
         if ( !s->vaddr && s->function && VMI_FAILURE == vmi_translate_ksym2v(sink_vmi, s->function, &s->vaddr) )
         {
-            fprintf(stderr, "Failed to find address for sink %s in the JSON\n", s->function);
+            /*fprintf(stderr, "Failed to find address for sink %s in the JSON\n", s->function);*/
             continue;
         }
 

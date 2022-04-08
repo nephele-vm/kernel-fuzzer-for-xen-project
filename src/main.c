@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 #include "private.h"
+#include "pv_no_cloning.h"
 
 static void get_input(void)
 {
@@ -49,7 +50,7 @@ static bool inject_input(vmi_instance_t vmi)
 
     if ( debug ) fprintf(stdout, "Writing %lu bytes of input to 0x%lx\n", input_size, address);
 
-    if ( vm_is_pv )
+    if ( vm_is_pv && !no_cloning )
     {
         if ( VMI_SUCCESS != pv_cow(vmi, fuzzdomid, address, NULL) )
             return false;
@@ -58,7 +59,7 @@ static bool inject_input(vmi_instance_t vmi)
     return VMI_SUCCESS == vmi_write(vmi, &ctx, input_size, input, NULL);
 }
 
-static bool make_fuzz_ready()
+bool make_fuzz_ready()
 {
     if ( !fuzzdomid )
         return false;
@@ -84,13 +85,16 @@ static bool make_fuzz_ready()
 
 static bool fuzz(void)
 {
-    if ( !fuzzdomid )
+    if ( !no_cloning && !fuzzdomid )
         return false;
 
     if ( vm_is_pv )
     {
-        if ( xc_cloning_reset(xc, fuzzdomid) )
-            return false;
+        if ( !no_cloning )
+        {
+            if ( xc_cloning_reset(xc, fuzzdomid) )
+                return false;
+        }
     }
     else
     if ( xc_memshr_fork_reset(xc, fuzzdomid) )
@@ -154,6 +158,18 @@ static bool fuzz(void)
     free(input);
     input = NULL;
 
+    if ( no_cloning )
+    {
+        int rc;
+
+        rc = no_cloning_reset();
+        if ( rc )
+        {
+            fprintf(stderr, "Error calling no_cloning_reset() rc=%d\n", rc);
+            exit(rc);
+        }
+    }
+
     return ret;
 }
 
@@ -214,6 +230,7 @@ static void usage(void)
     printf("\t  --sink-vaddr <virtual address>\n");
     printf("\t  --sink-paddr <physical address>\n");
     printf("\t  --record-codecov <path to save file>\n");
+    printf("\t  --no-cloning (only for Unikraft\n");
 
     printf("\n\n");
     printf("Optional global inputs:\n");
@@ -254,9 +271,10 @@ int main(int argc, char** argv)
         {"record-codecov", required_argument, NULL, 'R'},
         {"record-memaccess", required_argument, NULL, 'M'},
         {"os", required_argument, NULL, 'o'},
+        {"no-cloning", required_argument, NULL, 'z'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:R:M:svchtOKNDo:";
+    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:R:M:svchtOKNDo:z:";
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
@@ -325,6 +343,10 @@ int main(int argc, char** argv)
             break;
         case 't':
             ptcov = true;
+            break;
+        case 'z': /* PV no cloning */
+            no_cloning = true;
+            xl_config_path = strdup(optarg);
             break;
         case 'D':
             doublefetch = g_slist_prepend(doublefetch, GSIZE_TO_POINTER(strtoull(optarg, NULL, 0)));
@@ -441,6 +463,13 @@ int main(int argc, char** argv)
             goto done;
         }
 
+        if ( no_cloning )
+        {
+            sinkdomid = domid;
+            fuzzdomid = domid;
+        }
+        else
+        {
         rc = xc_cloning_clone_single(xc, domid, &sinkdomid);
         if (rc) {
             perror("Error calling xc_cloning_clone_single()");
@@ -473,6 +502,7 @@ int main(int argc, char** argv)
         if (rc) {
             perror("Error calling xc_domain_fuzzing_enable()");
             goto done;
+        }
         }
     }
     else
@@ -534,6 +564,9 @@ int main(int argc, char** argv)
 
     unsigned long iter = 0, t = time(0), cycle = 0;
 
+    if ( no_cloning )
+        no_cloning_init();
+
     while ( fuzz() )
     {
         iter++;
@@ -553,7 +586,8 @@ int main(int argc, char** argv)
         {
             close_trace(vmi);
             vmi_destroy(vmi);
-            xc_domain_destroy(xc, fuzzdomid);
+            if ( !no_cloning )
+                xc_domain_destroy(xc, fuzzdomid);
 
             iter = 0;
             fuzzdomid = 0;
@@ -569,10 +603,13 @@ int main(int argc, char** argv)
 done:
     if ( ptcov )
         close_pt();
+    if ( !no_cloning )
+    {
     if ( fuzzdomid && !keep )
         xc_domain_destroy(xc, fuzzdomid);
     if ( sinkdomid && !keep )
         xc_domain_destroy(xc, sinkdomid);
+    }
 
     if ( sink_list )
     {
@@ -590,6 +627,9 @@ done:
     if ( debug ) printf(" ############ DONE ##############\n");
     if ( logfile )
         close(out);
+
+    if ( no_cloning )
+        no_cloning_fini();
 
     return 0;
 }
