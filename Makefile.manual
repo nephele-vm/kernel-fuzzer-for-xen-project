@@ -1,0 +1,88 @@
+APP_FUZZER=kfx
+APP_FORKVM=forkvm
+APP_RWMEM=rwmem
+
+ifeq ($(local),y)
+XEN_ROOT=/home/$(USER)/dev/xen.clone.4.14.git
+XEN_DIST=$(XEN_ROOT)/dist/install/root/dist/xen
+KFX_ROOT=/home/$(USER)/dev/FUZZ/kfx.git
+else
+XEN_DIST=/root/dist/xen
+KFX_ROOT=/root/kfx.git
+endif
+
+LIBVMI_ROOT=$(KFX_ROOT)/libvmi
+LIBXDC_ROOT=$(KFX_ROOT)/libxdc
+
+XEN_INCLUDE=$(XEN_DIST)/include
+XEN_LIB=$(XEN_DIST)/lib
+
+CC=gcc
+
+CFLAGS=-Wall -Wextra
+ifeq ($(is_debug),y)
+CFLAGS+=-g -O0
+else
+CFLAGS+=-O3
+endif
+CFLAGS+=-fstack-protector
+CFLAGS+=-I. -Ilibvmi -I$(XEN_INCLUDE)
+CFLAGS+=-I/usr/include/glib-2.0
+CFLAGS+=-I$(KFX_ROOT)/capstone/include/capstone
+ifeq ($(local),y)
+CFLAGS+=-I/usr/lib/x86_64-linux-gnu/glib-2.0/include
+else
+CFLAGS+=-I/usr/lib/glib-2.0/include/
+endif
+CFLAGS+=-I$(LIBXDC_ROOT)
+
+LDFLAGS+=-L$(XEN_ROOT)/tools/libs/ctrl -L$(XEN_LIB) -lxenctrl -lxenforeignmemory
+LDFLAGS+=-L$(LIBVMI_ROOT)/libvmi/.libs -lvmi
+LDFLAGS+=-lglib-2.0 -lcapstone
+LDFLAGS+=-L$(LIBXDC_ROOT)/build -lxdc
+LDFLAGS+=-lpthread
+LDFLAGS+=-L$(XEN_ROOT)/tools/libs/store -lxenstore
+
+
+APP_FUZZER_SOURCES=src/main.c \
+	src/private.c \
+	src/signal.c \
+	src/vmi.c \
+	src/setup.c \
+	src/afl.c \
+	src/tracer.c \
+	src/forkvm.c \
+	src/pv_no_cloning.c \
+	src/ptcov.c
+APP_FUZZER_OBJS := $(patsubst %.c,%.o,$(APP_FUZZER_SOURCES))
+
+
+
+
+APP_FORKVM_SOURCES=src/common.c \
+	src/forkvm.c \
+	src/forkvm_main.c
+APP_FORKVM_OBJS := $(patsubst %.c,%.o,$(APP_FORKVM_SOURCES))
+
+APP_RWMEM_SOURCES=src/common.c \
+	src/vmi.c \
+	src/rwmem.c
+APP_RWMEM_OBJS := $(patsubst %.c,%.o,$(APP_RWMEM_SOURCES))
+
+all: $(APP_FUZZER) $(APP_FORKVM) $(APP_RWMEM)
+
+$(APP_FUZZER): $(APP_FUZZER_OBJS)
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+$(APP_FORKVM): $(APP_FORKVM_OBJS)
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+$(APP_RWMEM): $(APP_RWMEM_OBJS)
+	$(CC) -o $@ $^ $(LDFLAGS)
+
+.PHONY=clean
+clean:
+	rm $(APP_FUZZER_OBJS) $(APP_FUZZER)
+	rm $(APP_FORKVM_OBJS) $(APP_FORKVM)
+	rm $(APP_RWMEM_OBJS) $(APP_RWMEM)
+
