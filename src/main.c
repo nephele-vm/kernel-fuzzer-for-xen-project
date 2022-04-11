@@ -272,9 +272,10 @@ int main(int argc, char** argv)
         {"record-memaccess", required_argument, NULL, 'M'},
         {"os", required_argument, NULL, 'o'},
         {"no-cloning", required_argument, NULL, 'z'},
+        {"duration", required_argument, NULL, 'T'},
         {NULL, 0, NULL, 0}
     };
-    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:R:M:svchtOKNDo:z:";
+    const char* opts = "d:i:j:f:a:l:F:H:S:m:n:V:P:R:M:svchtOKNDo:z:T:";
     limit = ~0;
     unsigned long refork = 0;
     bool keep = false;
@@ -387,6 +388,9 @@ int main(int argc, char** argv)
             break;
         case 'o':
             libvmi_default_os = optarg;
+            break;
+        case 'T':
+            duration_sec = strtoull(optarg, NULL, 0);
             break;
         case 'h': /* fall-through */
         default:
@@ -563,6 +567,7 @@ int main(int argc, char** argv)
     else printf("Running in standalone mode\n");
 
     unsigned long iter = 0, t = time(0), cycle = 0;
+    int start_sec = (int) t;
 
     if ( no_cloning )
         no_cloning_init();
@@ -595,6 +600,9 @@ int main(int argc, char** argv)
             if ( fork_vm(sinkdomid, &fuzzdomid) )
                 make_fuzz_ready();
         }
+
+        if ( duration_sec && time(0) - (int) start_sec >= duration_sec )
+            break;
     }
 
     close_trace(vmi);

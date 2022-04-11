@@ -34,6 +34,7 @@ bool vm_is_pv;
 bool no_cloning;
 char *xl_config_path;
 struct xs_handle *xsh;
+int duration_sec;
 os_t os;
 addr_t target_pagetable;
 addr_t start_rip;

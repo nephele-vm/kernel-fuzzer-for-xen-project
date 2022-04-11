@@ -55,6 +55,7 @@ extern bool vm_is_pv;
 extern bool no_cloning;
 extern char *xl_config_path;
 extern struct xs_handle *xsh;
+extern int duration_sec;
 extern os_t os;
 extern addr_t target_pagetable;
 extern addr_t start_rip;
