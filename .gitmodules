@@ -15,7 +15,7 @@
 	shallow = true
 [submodule "AFL"]
 	path = AFL
-	url = https://github.com/google/AFL
+	url = https://github.com/nephele-vm/AFL
 	ignore = dirty
 	shallow = true
 [submodule "capstone"]
