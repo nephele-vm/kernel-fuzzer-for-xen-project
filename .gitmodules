@@ -1,6 +1,6 @@
 [submodule "libvmi"]
 	path = libvmi
-	url = https://github.com/libvmi/libvmi
+	url = https://github.com/nephele-vm/libvmi
 	ignore = dirty
 	shallow = true
 [submodule "xen"]
