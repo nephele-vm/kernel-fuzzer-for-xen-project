@@ -1,4 +1,6 @@
 #include <linux/module.h>
+#include <xen/xen.h>
+#include <asm/xen/hypercall.h>
 
 static char test1[] = "deadbeef";
 static char test2[] = "nottbeef";
@@ -67,11 +69,24 @@ static int *test(int x)
     return y;
 }
 
+static void print_xen(const char *fmt, ...)
+{
+    va_list args;
+    char buf[128];
+
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+    va_end(args);
+
+    HYPERVISOR_console_io(CONSOLEIO_write, strlen(buf), buf);
+}
+
 static int my_init_module(void)
 {
     int *x = NULL;
 
     printk(KERN_ALERT "Kernel Fuzzer Test Module Test1 0x%px %s Test2 0x%px %s\n", test1, test1, test2, test2);
+    print_xen("Kernel Fuzzer Test Module Test1 0x%px %s Test2 0x%px %s\n", test1, test1, test2, test2);
 
     harness_extended(0x13371337, &test1, sizeof(test1));
 
