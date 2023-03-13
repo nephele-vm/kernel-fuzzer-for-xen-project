@@ -1,5 +1,6 @@
 bin_PROGRAMS = kfx
 kfx_SOURCES = src/main.c \
+              src/pv_no_cloning.c src/pv_no_cloning.h \
               src/private.c src/private.h \
               src/signal.c src/signal.h \
               src/vmi.c src/vmi.h \
@@ -10,9 +11,9 @@ kfx_SOURCES = src/main.c \
               src/ptcov.c src/ptcov.h \
               src/sink.h
 
-kfx_LDADD   = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(XENFMEM_LIBS) $(GLIB_LIBS)
+kfx_LDADD   = $(LIBS) $(VMI_LIBS) $(CAPSTONE_LIBS) $(LIBXC_LIBS) $(XENFMEM_LIBS) $(XENSTORE_LIBS) $(GLIB_LIBS)
 kfx_CFLAGS  = -Wall -Wextra -fstack-protector -Wno-override-init -Wno-unused-variable \
-              $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(XENFMEM_CFLAGS) $(GLIB_CFLAGS)
+              $(CFLAGS) $(VMI_CFLAGS) $(CAPSTONE_CFLAGS) $(LIBXC_CFLAGS) $(XENFMEM_CFLAGS) $(XENSTORE_CFLAGS) $(GLIB_CFLAGS)
 
 if STATIC_LIBXDC
     noinst_LTLIBRARIES= libxdc.la
